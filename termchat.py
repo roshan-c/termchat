@@ -149,44 +149,73 @@ class TermChat:
                 temperature=0.7,
             )
             
-            # Stream the response with live updates
+            # Stream the response with direct printing
             full_response = ""
             reasoning_content = ""
-            current_section = "response"  # Track if we're in reasoning or response
+            reasoning_started = False
+            response_started = False
             
-            with Live(Text("AI is thinking...", style="dim"), refresh_per_second=20) as live:
+            # Show initial thinking indicator
+            thinking_spinner = Live(Spinner("dots", text="AI is thinking..."), refresh_per_second=10)
+            thinking_spinner.start()
+            
+            try:
                 for chunk in response:
                     # Check for reasoning content (o1 models)
                     if hasattr(chunk.choices[0].delta, 'reasoning') and chunk.choices[0].delta.reasoning:
                         reasoning_content += chunk.choices[0].delta.reasoning
-                        current_section = "reasoning"
-                        # Show reasoning with a different style
-                        thinking_display = Text()
-                        thinking_display.append("🤔 AI is thinking:\n", style="bold yellow")
-                        thinking_display.append(reasoning_content, style="dim italic")
-                        live.update(thinking_display)
+                        
+                        # Start showing reasoning if we haven't already
+                        if not reasoning_started:
+                            thinking_spinner.stop()
+                            reasoning_started = True
+                            self.console.print(f"[bold yellow]🤔 AI is thinking:[/bold yellow]")
+                        
+                        # Print reasoning content as it streams
+                        self.console.print(chunk.choices[0].delta.reasoning, end="", style="dim italic", markup=False)
+                        self.console.file.flush()
                     
                     # Regular response content
                     elif chunk.choices[0].delta.content:
                         content = chunk.choices[0].delta.content
                         full_response += content
-                        current_section = "response"
                         
-                        # If we had reasoning, show both sections
-                        if reasoning_content:
-                            combined_display = Text()
-                            combined_display.append("🤔 AI was thinking:\n", style="bold yellow")
-                            combined_display.append(reasoning_content + "\n\n", style="dim italic")
-                            combined_display.append("💬 Response:\n", style="bold green")
-                            combined_display.append(full_response)
-                            live.update(Panel(
-                                combined_display,
-                                title="AI Response with Reasoning",
-                                border_style="blue"
-                            ))
-                        else:
-                            # Show just the response as before
-                            live.update(Markdown(full_response))
+                        # Stop spinner/reasoning and start response preview
+                        if not response_started:
+                            if not reasoning_started:
+                                thinking_spinner.stop()
+                            
+                            response_started = True
+                            
+                            # Add spacing and header for response
+                            if reasoning_content:
+                                self.console.print(f"\n\n[bold green]💬 Response:[/bold green]")
+                        
+                        # Stream the actual response content as it comes in
+                        self.console.print(content, end="", markup=False)
+                        self.console.file.flush()
+            
+            finally:
+                # Make sure spinner is stopped
+                if thinking_spinner.is_started:
+                    thinking_spinner.stop()
+            
+            # Replace the streamed content with properly formatted markdown
+            if response_started and full_response.strip():
+                # Add some newlines to separate from the raw content
+                self.console.print("\n")
+                
+                # Display the final response with proper markdown formatting
+                markdown_response = Markdown(full_response)
+                response_panel = Panel(
+                    markdown_response,
+                    title="💬 Formatted Response",
+                    border_style="blue",
+                    padding=(1, 2)
+                )
+                self.console.print(response_panel)
+            elif reasoning_started:
+                self.console.print()  # Just add newline if only reasoning
             
             # Add AI response to conversation (only the actual response, not reasoning)
             self.conversation.append({"role": "assistant", "content": full_response})
