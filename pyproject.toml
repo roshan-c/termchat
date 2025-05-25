@@ -1,0 +1,20 @@
+[project]
+name = "termchat"
+version = "0.1.0"
+description = "A simple terminal AI chat application using OpenRouter"
+authors = [
+    {name = "User", email = "user@example.com"},
+]
+dependencies = [
+    "openai>=1.0.0",
+    "rich>=13.0.0",
+    "python-dotenv>=1.0.0",
+]
+requires-python = ">=3.8"
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.uv]
+dev-dependencies = [] 
