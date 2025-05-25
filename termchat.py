@@ -77,12 +77,16 @@ class TermChat:
         """Allow user to change the AI model"""
         models = self.get_available_models()
         
-        self.console.print("\n[bold]Available Models:[/bold]")
+        # Create the model selection display
+        menu_text = Text()
+        menu_text.append("\nAvailable Models:\n", style="bold")
         for i, model in enumerate(models, 1):
             marker = "→" if model == self.current_model else " "
-            self.console.print(f"{marker} {i}. {model}")
+            menu_text.append(f"{marker} {i}. {model}\n")
+        menu_text.append(f"\nCurrent: {self.current_model}\n")
         
-        self.console.print(f"\nCurrent: {self.current_model}")
+        # Display the menu
+        self.console.print(menu_text)
         
         choice = Prompt.ask(
             "Enter model number (or press Enter to keep current)",
@@ -90,15 +94,24 @@ class TermChat:
             show_default=False
         )
         
+        # Move cursor up to overwrite the menu and input
+        lines_to_clear = len(models) + 5  # models + headers + current + prompt + input
+        for _ in range(lines_to_clear):
+            self.console.file.write("\033[1A\033[2K")  # Move up and clear entire line
+        self.console.file.flush()
+        
         if choice.isdigit():
             idx = int(choice) - 1
             if 0 <= idx < len(models):
+                old_model = self.current_model
                 self.current_model = models[idx]
-                self.console.print(f"[green]✓ Changed to: {self.current_model}[/green]")
+                self.console.print(f"[green]✓ Model changed from {old_model.split('/')[-1]} to {self.current_model.split('/')[-1]}[/green]")
             else:
                 self.console.print("[red]Invalid model number[/red]")
         elif choice:
-            self.console.print("[yellow]Invalid input[/yellow]")
+            self.console.print("[yellow]Invalid input - keeping current model[/yellow]")
+        else:
+            self.console.print("[dim]Keeping current model[/dim]")
 
     def clear_conversation(self):
         """Clear the conversation history"""
